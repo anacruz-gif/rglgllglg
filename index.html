@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Control Industrial - ESP32</title>
+
+<style>
+/* =========================
+   ESTILO GENERAL INDUSTRIAL
+========================= */
+:root {
+    --bg-color: #0a0a0a;
+    --panel-bg: #151515;
+    --text-main: #e0e0e0;
+    --accent-blue: #00d9ff;
+    --accent-yellow: #ffc107;
+    --led-off: #3a3a3a;
+    --led-green: #00ff7f;
+    --led-red: #ff2b2b;
+}
+
+body {
+    background: var(--bg-color);
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text-main);
+    margin: 0;
+    padding-bottom: 50px;
+    text-align: center;
+}
+
+/* ---------- Encabezado ---------- */
+.header {
+    background: #111;
+    padding: 20px;
+    border-bottom: 4px solid #333;
+    margin-bottom: 30px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+
+.header h1 {
+    margin: 5px;
+    font-size: 24px;
+    color: var(--accent-blue);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.header h2 {
+    margin: 5px;
+    font-size: 14px;
+    color: var(--accent-yellow);
+    font-weight: normal;
+}
+
+.sub-header {
+    font-size: 18px;
+    color: #888;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+    width: 90%;
+    margin: 0 auto 20px auto;
+}
+
+/* ---------- Contenedor Principal (Grid) ---------- */
+.dashboard {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 10px;
+}
+
+/* ---------- Paneles (Tarjetas) ---------- */
+.panel {
+    background: var(--panel-bg);
+    flex: 1 1 350px; /* Responsive: mínimo 350px de ancho */
+    max-width: 500px;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.7);
+    border: 1px solid #333;
+    position: relative;
+}
+
+.panel-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 20px;
+    background: #222;
+    padding: 10px;
+    border-left: 5px solid;
+    text-align: left;
+}
+
+/* Color de borde por tipo de panel */
+.border-blue { border-left-color: var(--accent-blue); }
+.border-orange { border-left-color: #ff9800; }
+
+/* ---------- LEDs y Estados ---------- */
+.led-container {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin: 25px 0;
+}
+
+.led-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.led {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--led-off);
+    box-shadow: inset 0 0 10px #000;
+    transition: all 0.3s ease;
+    border: 2px solid #222;
+}
+
+/* Estados Activos */
+.led-green-on {
+    background: var(--led-green);
+    box-shadow: 0 0 25px var(--led-green);
+    border-color: #fff;
+}
+
+.led-red-on {
+    background: var(--led-red);
+    box-shadow: 0 0 25px var(--led-red);
+    border-color: #fff;
+}
+
+.label {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+/* Texto de estado grande */
+.status-text {
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 10px;
+    background: #000;
+    border-radius: 4px;
+    color: #555;
+    margin-top: 10px;
+}
+
+/* ---------- Histórico ---------- */
+.history-section {
+    width: 90%;
+    max-width: 800px;
+    margin: 40px auto;
+    background: var(--panel-bg);
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+#historial {
+    height: 150px;
+    overflow-y: auto;
+    background: #080808;
+    border: 1px solid #333;
+    padding: 10px;
+    font-family: "Courier New", monospace;
+    font-size: 13px;
+    text-align: left;
+    color: #0f0;
+}
+
+/* Scrollbar personalizada */
+#historial::-webkit-scrollbar { width: 8px; }
+#historial::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+
+/* ---------- Conexión BT ---------- */
+.bt-section {
+    margin-top: 30px;
+}
+
+button {
+    padding: 12px 30px;
+    background: linear-gradient(135deg, #00bcd4, #008ba3);
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    transition: 0.2s;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+#estadoBT {
+    margin-top: 15px;
+    font-weight: bold;
+    color: #ff4444;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Tecnológico Universitario Vida Nueva</h1>
+    <h2>Integrantes: William Palllo, Christopher Nacimba</h2>
+    <h2>Automatización e Instrumentación</h2>
+</div>
+
+<div class="sub-header">SISTEMA SCADA DE MONITOREO HMI</div>
+
+<div class="dashboard">
+
+    <div class="panel">
+        <div class="panel-title border-blue">ELECTROVÁLVULA</div>
+        
+        <div class="led-container">
+            <div class="led-group">
+                <div id="valvula-verde" class="led"></div>
+                <div class="label">Abierta (ON)</div>
+            </div>
+            
+            <div class="led-group">
+                <div id="valvula-rojo" class="led led-red-on"></div> <div class="label">Cerrada (OFF)</div>
+            </div>
+        </div>
+
+        <div id="txt-valvula" class="status-text" style="color: #ff2b2b;">ESTADO: CERRADA</div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title border-orange">SENSOR DE BOYA (NIVEL)</div>
+        
+        <div class="led-container">
+            <div class="led-group">
+                <div id="boya-verde" class="led"></div>
+                <div class="label">Nivel Alto</div>
+            </div>
+            
+            <div class="led-group">
+                <div id="boya-rojo" class="led led-red-on"></div> <div class="label">Nivel Bajo</div>
+            </div>
+        </div>
+
+        <div id="txt-boya" class="status-text" style="color: #ff2b2b;">ESTADO: VACÍO</div>
+    </div>
+
+</div>
+
+<div class="history-section">
+    <h3 style="margin-top:0; color:#ccc; text-align:left;">Registro de Eventos (Datalogger)</h3>
+    <div id="historial">Sistema inicializado... Esperando conexión.</div>
+</div>
+
+<div class="bt-section">
+    <button onclick="conectar()">📡 CONECTAR DISPOSITIVO ESP32</button>
+    <div id="estadoBT">Desconectado</div>
+</div>
+
+
+<script>
+
+/* =========================
+   VARIABLES GLOBALES
+========================= */
+let device, characteristic;
+
+// Elementos DOM Válvula
+const valVerde = document.getElementById("valvula-verde");
+const valRojo  = document.getElementById("valvula-rojo");
+const txtVal   = document.getElementById("txt-valvula");
+
+// Elementos DOM Boya
+const boyaVerde = document.getElementById("boya-verde");
+const boyaRojo  = document.getElementById("boya-rojo");
+const txtBoya   = document.getElementById("txt-boya");
+
+// Elementos Generales
+const historial = document.getElementById("historial");
+const estadoBT  = document.getElementById("estadoBT");
+
+// UUIDs (Deben coincidir con tu código Arduino/ESP32)
+const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+const TX_UUID      = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+
+
+/* =========================
+   LÓGICA BLUETOOTH
+========================= */
+async function conectar(){
+    try {
+        device = await navigator.bluetooth.requestDevice({
+            filters: [{ name: 'ESP32_VALVULA' }], // Asegúrate que tu ESP32 se llame así
+            optionalServices: [SERVICE_UUID]
+        });
+
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        characteristic = await service.getCharacteristic(TX_UUID);
+
+        await characteristic.startNotifications();
+        characteristic.addEventListener('characteristicvaluechanged', recibirDato);
+
+        estadoBT.innerText = "SISTEMA ONLINE - CONECTADO";
+        estadoBT.style.color = "#00ff7f";
+        agregarHistorial("--- Conexión Bluetooth Exitosa ---");
+
+        device.addEventListener('gattserverdisconnected', () => {
+            estadoBT.innerText = "ERROR DE CONEXIÓN";
+            estadoBT.style.color = "#ff4444";
+            agregarHistorial("!!! Conexión perdida con el ESP32 !!!");
+        });
+
+    } catch (error) {
+        console.error(error);
+        alert("Error al conectar: " + error);
+    }
+}
+
+/* =========================
+   RECEPCIÓN DE DATOS
+========================= */
+function recibirDato(event){
+    // Convertir bytes a texto y limpiar espacios
+    const rawData = new TextDecoder().decode(event.target.value);
+    const data = rawData.trim(); 
+
+    // LÓGICA DE CONTROL
+    // Protocolo esperado:
+    // "VALVULA:ON"  -> Válvula activada
+    // "VALVULA:OFF" -> Válvula desactivada
+    // "BOYA:ON"     -> Boya arriba (Nivel alto)
+    // "BOYA:OFF"    -> Boya abajo (Nivel bajo)
+
+    if(data === "VALVULA:ON") {
+        setValvula(true);
+    } 
+    else if(data === "VALVULA:OFF") {
+        setValvula(false);
+    }
+    else if(data === "BOYA:ON") {
+        setBoya(true);
+    }
+    else if(data === "BOYA:OFF") {
+        setBoya(false);
+    }
+    else {
+        // Opción para depurar otros datos que lleguen
+        console.log("Dato desconocido recibido:", data);
+    }
+}
+
+/* =========================
+   ACTUALIZACIÓN DE INTERFAZ
+========================= */
+
+// --- Control Válvula ---
+function setValvula(estado) {
+    if(estado) { // ON
+        valVerde.classList.add("led-green-on");
+        valRojo.classList.remove("led-red-on");
+        txtVal.innerText = "ESTADO: ABIERTA (FLUJO)";
+        txtVal.style.color = "#00ff7f";
+        agregarHistorial("Válvula: ABIERTA");
+    } else { // OFF
+        valVerde.classList.remove("led-green-on");
+        valRojo.classList.add("led-red-on");
+        txtVal.innerText = "ESTADO: CERRADA";
+        txtVal.style.color = "#ff2b2b";
+        agregarHistorial("Válvula: CERRADA");
+    }
+}
+
+// --- Control Boya ---
+function setBoya(estado) {
+    if(estado) { // ON (Nivel Alto)
+        boyaVerde.classList.add("led-green-on");
+        boyaRojo.classList.remove("led-red-on");
+        txtBoya.innerText = "ESTADO: LLENO (ALTO)";
+        txtBoya.style.color = "#00ff7f";
+        agregarHistorial("Sensor Boya: NIVEL ALTO DETECTADO");
+    } else { // OFF (Nivel Bajo)
